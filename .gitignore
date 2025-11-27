@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
+# Never upload conda environments
+env/
+venv/
+miniconda3/
+anaconda3/
+
+# Model files
+saved_models/
