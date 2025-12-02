@@ -1,16 +1,20 @@
 from src.utils.mol_utils import mol_to_pyg, draw_mol, visualize_graph
 
-smiles = "CCO"   # ethanol
+smiles = "CCO"  # ethanol
 
 data = mol_to_pyg(smiles)
 
-print(data)
-print("Node features:", data.x.shape)
-print("Edges:", data.edge_index.shape)
+if data:
+    print(data)
+    if data.x is not None:
+        print("Node features:", data.x.shape)
+    if data.edge_index is not None:
+        print("Edges:", data.edge_index.shape)
 
 # Visualize molecule
 img = draw_mol(smiles)
-img.show()
+if img is not None:
+    img.show()
 
 # Visualize graph
 visualize_graph(data)
