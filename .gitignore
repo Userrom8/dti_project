@@ -11,3 +11,5 @@ anaconda3/
 
 # Model files
 saved_models/
+
+data/processed/
