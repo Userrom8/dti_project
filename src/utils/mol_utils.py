@@ -1,3 +1,8 @@
+from rdkit import RDLogger
+
+RDLogger.DisableLog("rdApp.*")
+
+
 import torch
 from torch_geometric.data import Data
 from rdkit import Chem
