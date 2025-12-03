@@ -17,8 +17,8 @@ class DrugGNN(nn.Module):
         in_dim: int,
         hidden_dim: int = 128,
         num_layers: int = 3,
-        gnn_type: str = "gcn",     # "gcn", "gat", or "gin"
-        dropout: float = 0.2
+        gnn_type: str = "gcn",  # "gcn", "gat", or "gin"
+        dropout: float = 0.2,
     ):
         super().__init__()
 
@@ -35,7 +35,7 @@ class DrugGNN(nn.Module):
             nn1 = nn.Sequential(
                 nn.Linear(in_dim, hidden_dim),
                 nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
+                nn.Linear(hidden_dim, hidden_dim),
             )
             self.convs.append(GINConv(nn1))
         else:
@@ -51,15 +51,13 @@ class DrugGNN(nn.Module):
                 nn_layer = nn.Sequential(
                     nn.Linear(hidden_dim, hidden_dim),
                     nn.ReLU(),
-                    nn.Linear(hidden_dim, hidden_dim)
+                    nn.Linear(hidden_dim, hidden_dim),
                 )
                 self.convs.append(GINConv(nn_layer))
 
         # Final MLP projection
         self.project = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), nn.Dropout(dropout)
         )
 
     def forward(self, data):
@@ -81,4 +79,4 @@ class DrugGNN(nn.Module):
         x = global_mean_pool(x, batch)
 
         out = self.project(x)
-        return out     # shape [batch, hidden_dim]
+        return out  # shape [batch, hidden_dim]

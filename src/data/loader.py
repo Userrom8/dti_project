@@ -44,7 +44,7 @@ def create_dataloaders(
         csv_path=csv_path,
         cache_path=cache_path,
         rebuild_cache=rebuild_cache,
-        max_rows=max_rows
+        max_rows=max_rows,
     )
 
     total_len = len(dataset)
@@ -58,8 +58,9 @@ def create_dataloaders(
     test_len = total_len - train_len - val_len
 
     train_set, val_set, test_set = random_split(
-        dataset, [train_len, val_len, test_len],
-        generator=torch.Generator().manual_seed(42)
+        dataset,
+        [train_len, val_len, test_len],
+        generator=torch.Generator().manual_seed(42),
     )
 
     # ------------------------------------------
@@ -70,7 +71,7 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=shuffle,
         collate_fn=collate_fn,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
 
     val_loader = DataLoader(
@@ -78,7 +79,7 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=False,
         collate_fn=collate_fn,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
 
     test_loader = DataLoader(
@@ -86,7 +87,7 @@ def create_dataloaders(
         batch_size=batch_size,
         shuffle=False,
         collate_fn=collate_fn,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
 
     return train_loader, val_loader, test_loader
@@ -100,10 +101,7 @@ if __name__ == "__main__":
     cache_path = "data/processed/graphs_cache.pt"
 
     train_loader, val_loader, test_loader = create_dataloaders(
-        csv_path,
-        cache_path=cache_path,
-        batch_size=4,
-        max_rows=20
+        csv_path, cache_path=cache_path, batch_size=4, max_rows=20
     )
 
     print("Train batches:", len(train_loader))
