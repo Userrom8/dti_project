@@ -9,10 +9,18 @@ venv/
 miniconda3/
 anaconda3/
 
-# Model files
+# Model output
 saved_models/
 
+# Ignore dataset folders (but not src/data)
+data/raw/
 data/processed/
-data/
+
+# Ignore heavy model/data files
 *.pt
 *.pth
+*.pkl
+
+# IMPORTANT: Un-ignore your source code folder
+!src/data/
+!src/data/*.py

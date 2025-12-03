@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--cache", type=str, default="data/processed/graphs_cache.pt", help="cache path")
     args = parser.parse_args()
 
-    ds = DTIDataset(args.csv, cache_path=args.cache, rebuild_cache=False, max_rows=50)
+    ds = DTIDataset(args.csv, cache_path=args.cache, rebuild_cache=False)
     print(f"Dataset size: {len(ds)}")
     if len(ds) > 0:
         g, seq, y = ds[0]
