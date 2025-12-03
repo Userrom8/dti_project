@@ -13,3 +13,6 @@ anaconda3/
 saved_models/
 
 data/processed/
+data/
+*.pt
+*.pth
