@@ -7,7 +7,7 @@ from typing import Tuple, Optional
 try:
     from src.data.dataset import DTIDataset, collate_fn
 except:
-    from .dataset import DTIDataset, collate_fn  # fallback for script mode
+    from .dataset import DTIDataset, collate_fn
 
 
 def create_dataloaders(
@@ -24,22 +24,15 @@ def create_dataloaders(
 ):
     """
     Returns (train_loader, val_loader, test_loader)
-
-    Parameters:
-    -----------
-    csv_path: path to dataset CSV
-    cache_path: where to store processed graphs (pt file)
-    batch_size: batch size
-    train_split/val_split/test_split: fractions
-    num_workers: for multiprocessing dataloader (Windows = 0)
-    shuffle: shuffle training data
-    rebuild_cache: force rebuild of cached graph dataset
-    max_rows: limit rows for debugging
+    Automatically handles:
+        - cached protein embeddings
+        - tiny datasets (ensures non-empty splits)
+        - reproducible splits
     """
 
-    # ------------------------------------------
-    # Load full dataset
-    # ------------------------------------------
+    # ---------------------------
+    # Load dataset
+    # ---------------------------
     dataset = DTIDataset(
         csv_path=csv_path,
         cache_path=cache_path,
@@ -48,24 +41,49 @@ def create_dataloaders(
     )
 
     total_len = len(dataset)
-    assert total_len > 0, "Dataset is empty — check your CSV."
+    if total_len == 0:
+        raise ValueError("Dataset is empty. Check CSV or preprocessing.")
 
-    # ------------------------------------------
+    # ---------------------------
     # Compute split sizes
-    # ------------------------------------------
+    # ---------------------------
+    if total_len < 3:
+        # Not enough samples → put all in train
+        print(
+            f"[WARN] Dataset too small for splitting ({total_len} samples). Using train only."
+        )
+        train_loader = DataLoader(
+            dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn
+        )
+        return train_loader, None, None
+
     train_len = int(total_len * train_split)
     val_len = int(total_len * val_split)
     test_len = total_len - train_len - val_len
 
+    # Guarantee at least 1 sample in each split
+    if val_len == 0:
+        val_len = 1
+        train_len -= 1
+
+    if test_len == 0:
+        test_len = 1
+        train_len -= 1
+
+    print(f"[INFO] Dataset split: train={train_len}, val={val_len}, test={test_len}")
+
+    # ---------------------------
+    # Create splits
+    # ---------------------------
     train_set, val_set, test_set = random_split(
         dataset,
         [train_len, val_len, test_len],
         generator=torch.Generator().manual_seed(42),
     )
 
-    # ------------------------------------------
-    # Build loaders
-    # ------------------------------------------
+    # ---------------------------
+    # Create DataLoaders
+    # ---------------------------
     train_loader = DataLoader(
         train_set,
         batch_size=batch_size,
@@ -93,9 +111,6 @@ def create_dataloaders(
     return train_loader, val_loader, test_loader
 
 
-# ------------------------
-# Quick test / demo usage
-# ------------------------
 if __name__ == "__main__":
     csv_path = "data/raw/sample.csv"
     cache_path = "data/processed/graphs_cache.pt"
@@ -107,10 +122,3 @@ if __name__ == "__main__":
     print("Train batches:", len(train_loader))
     print("Val batches:", len(val_loader))
     print("Test batches:", len(test_loader))
-
-    # Inspect one batch
-    for batch_graph, seqs, labels in train_loader:
-        print("Graph batch:", batch_graph)
-        print("Seqs:", seqs)
-        print("Labels:", labels)
-        break
