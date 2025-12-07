@@ -2,6 +2,7 @@
 
 import torch
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Import your inference utilities
@@ -13,15 +14,29 @@ MODEL_PATH = "saved_models/best_checkpoint.pt"
 
 app = FastAPI(title="DTI Prediction API", version="1.0.0")
 
+# -------------------------------
+# CORS (Allow frontend calls)
+# -------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or ["http://localhost:5173"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -------------------------------
+# Load model at startup
+# -------------------------------
 print("🔄 Loading DTI model...")
 model = load_trained_model(MODEL_PATH)
+model.eval()
 print("✅ Model loaded and ready for inference.")
+
 
 # -------------------------------
 # Request / Response Models
 # -------------------------------
-
-
 class PredictionRequest(BaseModel):
     smiles: str
     protein: str
