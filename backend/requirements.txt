@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+torch
+torch-geometric
+rdkit-pypi
+transformers
+pydantic
+tqdm
