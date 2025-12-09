@@ -10,8 +10,11 @@ import {
   ChevronDown,
   Info,
   BoxSelect,
+  Atom,
+  Cuboid,
 } from "lucide-react";
-import Molecule3DViewer from "./components/Molecule3DViewer";
+import Molecule3DViewer from "./components/Mol3DViewer";
+import Protein3DViewer from "./components/Protein3DViewer";
 
 const API_URL = "http://127.0.0.1:8000/predict";
 
@@ -129,10 +132,11 @@ export default function App() {
 
   // 3D Viewer States
   const [sdf3d, setSdf3d] = useState(null);
+  const [pdb3d, setPdb3d] = useState(null);
   const [sdfError, setSdfError] = useState(false);
 
-  // fetch3D can handle both SMILES and Names via the Cactus API
-  const fetch3D = async (inputVal) => {
+  // fetchDrug3D can handle both SMILES and Names via the Cactus API
+  const fetchDrug3D = async (inputVal) => {
     setSdfError(false);
     try {
       const url = `https://cactus.nci.nih.gov/chemical/structure/${encodeURIComponent(
@@ -152,6 +156,44 @@ export default function App() {
       console.error("3D fetch error:", err);
       setSdf3d(null);
       setSdfError(true);
+    }
+  };
+
+  // 2. Fetch Protein 3D (ESMFold API)
+  const fetchProtein3D = async (rawSequence) => {
+    try {
+      // CLEAN THE SEQUENCE: Remove FASTA headers (lines starting with >) and all whitespace
+      const cleanSequence = rawSequence
+        .split("\n")
+        .filter((line) => !line.trim().startsWith(">")) // Remove header lines
+        .join("")
+        .replace(/\s+/g, "") // Remove spaces/newlines
+        .toUpperCase();
+
+      if (cleanSequence.length > 400) {
+        console.warn("Sequence too long for instant 3D preview");
+        setPdb3d(null);
+        return;
+      }
+
+      const url = "https://api.esmatlas.com/foldSequence/v1/pdb/";
+      const resp = await fetch(url, {
+        method: "POST",
+        body: cleanSequence,
+      });
+
+      if (!resp.ok) throw new Error("Protein folding failed");
+      const text = await resp.text();
+
+      // Basic validation: PDB files should start with HEADER or contain ATOM records
+      if (!text.includes("ATOM") && !text.includes("HEADER")) {
+        throw new Error("Invalid PDB data");
+      }
+
+      setPdb3d(text);
+    } catch (err) {
+      console.error("Protein 3D fetch error:", err);
+      setPdb3d(null);
     }
   };
 
@@ -202,28 +244,45 @@ export default function App() {
     try {
       setLoading(true);
 
-      // Fetch 3D structure using the active input (works for both Name and SMILES)
-      await fetch3D(activeInput);
-
-      // Construct payload dynamically based on input type
+      // --- Parallel Fetching ---
+      // 1. Fetch Drug Structure
+      const drugPromise = fetchDrug3D(activeInput);
+      // 2. Fetch Protein Structure (ESMFold)
+      const proteinPromise = fetchProtein3D(protein);
+      // 3. Fetch Prediction (Your Backend)
       const payload = {
         protein,
         ...(inputType === "smiles" ? { smiles } : { drug_name: drugName }),
       };
+      const predictionPromise = axios.post(API_URL, payload, {
+        timeout: 120000,
+      });
 
-      const resp = await axios.post(API_URL, payload, { timeout: 120000 });
+      // Wait for everything
+      const [_, __, resp] = await Promise.allSettled([
+        drugPromise,
+        proteinPromise,
+        predictionPromise,
+      ]);
 
-      if (resp.data && resp.data.affinity !== undefined) {
-        setResult(Number(resp.data.affinity));
-      } else if (resp.data && resp.data.error) {
-        setError(resp.data.error);
+      // Check prediction result (the most important part)
+      if (resp.status === "fulfilled") {
+        if (resp.value.data && resp.value.data.affinity !== undefined) {
+          setResult(Number(resp.value.data.affinity));
+        } else if (resp.value.data && resp.value.data.error) {
+          setError(resp.value.data.error);
+        } else {
+          setError("Unexpected API response.");
+        }
       } else {
-        setError("Unexpected API response.");
+        throw new Error(
+          resp.reason?.response?.data?.error ||
+            resp.reason?.message ||
+            "Prediction failed."
+        );
       }
     } catch (err) {
-      setError(
-        err?.response?.data?.error || err.message || "Prediction failed."
-      );
+      setError(err.message || "An error occurred.");
     } finally {
       setLoading(false);
     }
@@ -441,7 +500,9 @@ export default function App() {
 
               {/* 3D Viewer Section */}
               <div className="space-y-3">
-                <Label>3D Molecular Visualization</Label>
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                  <Atom className="w-4 h-4 text-blue-400" /> Molecular Structure
+                </div>
 
                 {sdf3d ? (
                   <>
@@ -466,6 +527,28 @@ export default function App() {
                     </div>
                   </div>
                 ) : null}
+              </div>
+
+              {/* 2. Protein Viewer */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+                  <Cuboid className="w-4 h-4 text-green-400" /> Target Structure
+                </div>
+                {pdb3d ? (
+                  <Protein3DViewer pdbData={pdb3d} />
+                ) : (
+                  <div className="w-full h-80 rounded-xl border border-dashed border-slate-800 bg-slate-950/30 flex flex-col items-center justify-center text-slate-500 gap-3">
+                    <Dna className="w-10 h-10 opacity-50" />
+                    <div className="text-center px-6">
+                      <p className="text-sm font-medium text-slate-400">
+                        Structure Unavailable
+                      </p>
+                      <p className="text-[10px] mt-1 text-slate-600">
+                        Sequence may be too long for instant preview.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="text-xs text-slate-500 border-t border-slate-800 pt-4 grid grid-cols-2 gap-4">

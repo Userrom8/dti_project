@@ -1,5 +1,6 @@
 # backend/main.py
 
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,7 +20,7 @@ app = FastAPI(title="DTI Prediction API", version="1.0.0")
 # -------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or ["http://localhost:5173"]
+    allow_origins=[os.getenv("ORIGIN")],  # Or ["http://localhost:5173"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,13 +29,15 @@ app.add_middleware(
 # -------------------------------
 # Load model at startup
 # -------------------------------
+model = None
+
 print("Loading DTI model...")
 try:
     model = load_trained_model(MODEL_PATH)
     model.eval()
     print("Model loaded and ready for inference.")
 except Exception as e:
-    print(f"❌ Failed to load model: {e}")
+    print(f"Failed to load model: {e}")
 
 
 # -------------------------------
