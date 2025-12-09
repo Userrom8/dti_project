@@ -1,9 +1,9 @@
 # backend/main.py
 
-import torch
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 
 # Import your inference utilities
 from src.inference.load_model import load_trained_model
@@ -28,17 +28,21 @@ app.add_middleware(
 # -------------------------------
 # Load model at startup
 # -------------------------------
-print("🔄 Loading DTI model...")
-model = load_trained_model(MODEL_PATH)
-model.eval()
-print("✅ Model loaded and ready for inference.")
+print("Loading DTI model...")
+try:
+    model = load_trained_model(MODEL_PATH)
+    model.eval()
+    print("Model loaded and ready for inference.")
+except Exception as e:
+    print(f"❌ Failed to load model: {e}")
 
 
 # -------------------------------
 # Request / Response Models
 # -------------------------------
 class PredictionRequest(BaseModel):
-    smiles: str
+    smiles: Optional[str] = None  # Must be Optional with default None
+    drug_name: Optional[str] = None  # Must be Optional with default None
     protein: str
 
 
@@ -51,7 +55,8 @@ class PredictionResponse(BaseModel):
 # -------------------------------
 @app.get("/")
 def root():
-    return {"status": "online", "message": "DTI API running successfully!"}
+    status = "online" if model else "degraded (model missing)"
+    return {"status": status, "message": "DTI API running successfully!"}
 
 
 # -------------------------------
@@ -59,11 +64,27 @@ def root():
 # -------------------------------
 @app.post("/predict", response_model=PredictionResponse)
 def predict(req: PredictionRequest):
+    # 1. Check if model is loaded
+    if model is None:
+        raise HTTPException(
+            status_code=503, detail="Model failed to load. Check server logs."
+        )
+
     try:
-        graph, seq = prepare_inputs(req.smiles, req.protein)
+        # 2. Preprocess (Handles Name -> SMILES conversion)
+        graph, seq = prepare_inputs(req.smiles, req.protein, req.drug_name)
+
+        # 3. Run Inference
         affinity = run_inference(model, graph, seq)
 
         return PredictionResponse(affinity=float(affinity))
 
+    except ValueError as ve:
+        # 4. Handle invalid input (e.g. Drug Name not found)
+        # RAISE exception, do NOT return a dict
+        raise HTTPException(status_code=400, detail=str(ve))
+
     except Exception as e:
-        return {"error": str(e)}
+        # 5. Handle unexpected server errors
+        print(f"Server Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
