@@ -4,7 +4,8 @@ uvicorn
 torch
 requests
 torch-geometric
-rdkit-pypi
+rdkit
 transformers
 pydantic
 tqdm
+pubchempy
