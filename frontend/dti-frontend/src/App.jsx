@@ -16,7 +16,8 @@ import {
 import Molecule3DViewer from "./components/Mol3DViewer";
 import Protein3DViewer from "./components/Protein3DViewer";
 
-const API_URL = "http://127.0.0.1:8000/predict";
+// Use the environment variable if available, otherwise fallback to localhost (for local dev)
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/predict";
 
 const EXAMPLES = [
   {
