@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Molecule3DViewer from "./components/Mol3DViewer";
 import Protein3DViewer from "./components/Protein3DViewer";
+import AnalysisPanel from "./components/AnalysisPanel";
 
 // Use the environment variable if available, otherwise fallback to localhost (for local dev)
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/predict";
@@ -551,6 +552,12 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* --- NEW ANALYSIS SECTION --- */}
+              <AnalysisPanel
+                affinity={result}
+                drugName={drugName || "Molecule"}
+              />
 
               <div className="text-xs text-slate-500 border-t border-slate-800 pt-4 grid grid-cols-2 gap-4">
                 <div>
